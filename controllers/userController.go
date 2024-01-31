@@ -102,8 +102,12 @@ func Signup() gin.HandlerFunc {
 		user.ID = primitive.NewObjectID()
 		user_id := user.ID.Hex()
 		user.User_id = &user_id
+
+		fmt.Printf("Email: %s, FirstName: %s, LastName: %s, UserType: %s, UserID: %s\n", *user.Email, *user.First_name, *user.Last_name, *user.User_type, *user.User_id)
+
 		token, refreshToken, err := helper.GenerateAllTokens(*user.Email, *user.First_name, *user.Last_name, *user.User_type, *user.User_id)
 		if err != nil {
+			log.Printf("Error generating JWT: %v", err)
 			msg := fmt.Sprint("couldn't generate jwt")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
 			return

@@ -18,7 +18,7 @@ import (
 
 var userCollection *mongo.Collection = database.OpenCollection(database.ConnectToMongoDB(), "users")
 
-var SECRET_KEY string = os.Getenv("SECRET_KEY")
+var SECRET_KEY []byte = []byte(os.Getenv("SECRET_KEY"))
 
 // GenerateAllTokens генерирует токен и refresh token
 func GenerateAllTokens(email, firstName, lastName, userType, uid string) (string, string, error) {
