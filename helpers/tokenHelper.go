@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"oiynlike/database"
 	"os"
@@ -15,7 +16,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var userCollection *mongo.Collection = database.OpenCollection("user")
+var userCollection *mongo.Collection = database.OpenCollection(database.ConnectToMongoDB(), "users")
 
 var SECRET_KEY string = os.Getenv("SECRET_KEY")
 
@@ -86,4 +87,31 @@ func UpdateAllTokens(signedToken string, signedRefreshToken string, userId strin
 	}
 	return
 
+}
+
+func ValidateToken(tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return SECRET_KEY, nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse token: %v", err)
+	}
+
+	if !token.Valid {
+		return nil, fmt.Errorf("Invalid token")
+	}
+
+	// Проверка времени истечения (exp)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, fmt.Errorf("Failed to extract claims from token")
+	}
+
+	expirationTime := time.Unix(int64(claims["exp"].(float64)), 0)
+	if time.Now().After(expirationTime) {
+		return nil, fmt.Errorf("Token has expired")
+	}
+
+	return claims, nil
 }

@@ -3,12 +3,15 @@ package main
 import (
 	"os"
 
+	"oiynlike/database"
 	routes "oiynlike/routes"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+
+	database.ConnectToMongoDB()
 
 	port := os.Getenv("PORT")
 

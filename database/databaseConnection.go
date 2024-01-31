@@ -1,5 +1,3 @@
-// database/database.go
-
 package database
 
 import (
@@ -16,14 +14,15 @@ import (
 var (
 	mongoClient *mongo.Client
 	once        sync.Once
+	initErr     error // Variable to store the initialization error
 )
 
-func ConnectToMongoDB() (*mongo.Client, error) {
+func ConnectToMongoDB() *mongo.Client {
 	// Use sync.Once to ensure that the connection is established only once
 	once.Do(func() {
 		err := godotenv.Load()
 		if err != nil {
-			fmt.Printf("Error loading .env file: %v\n", err)
+			initErr = fmt.Errorf("Error loading .env file: %v", err)
 			return
 		}
 
@@ -33,13 +32,13 @@ func ConnectToMongoDB() (*mongo.Client, error) {
 
 		client, err := mongo.Connect(context.Background(), clientOptions)
 		if err != nil {
-			fmt.Printf("Error connecting to MongoDB: %v\n", err)
+			initErr = fmt.Errorf("Error connecting to MongoDB: %v", err)
 			return
 		}
 
 		err = client.Ping(context.Background(), nil)
 		if err != nil {
-			fmt.Printf("Error pinging MongoDB: %v\n", err)
+			initErr = fmt.Errorf("Error pinging MongoDB: %v", err)
 			return
 		}
 
@@ -47,9 +46,10 @@ func ConnectToMongoDB() (*mongo.Client, error) {
 		mongoClient = client
 	})
 
-	return mongoClient, nil
+	return mongoClient
 }
 
-func OpenCollection(collectionName string) *mongo.Collection {
-	return mongoClient.Database("oiynlike").Collection(collectionName)
+func OpenCollection(client *mongo.Client, collectionName string) *mongo.Collection {
+	var collection *mongo.Collection = client.Database("oiynlike").Collection(collectionName)
+	return collection
 }

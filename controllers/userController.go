@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"oiynlike/database"
 	helper "oiynlike/helpers"
+
 	"oiynlike/models"
 	"strconv"
 	"time"
@@ -19,7 +20,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var userCollection *mongo.Collection = database.OpenCollection("user")
+var userCollection *mongo.Collection = database.OpenCollection(database.ConnectToMongoDB(), "users")
 var validate = validator.New()
 
 func HashPassword(providedPassword string) string {
