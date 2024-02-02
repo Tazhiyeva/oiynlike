@@ -87,13 +87,13 @@ func Signup() gin.HandlerFunc {
 			return
 		}
 
-		user.Created_at, err = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		user.CreatedAt, err = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while parsing time"})
 			return
 		}
 
-		user.Updated_at, err = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		user.UpdatedAt, err = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while parsing time"})
 			return
@@ -101,11 +101,11 @@ func Signup() gin.HandlerFunc {
 
 		user.ID = primitive.NewObjectID()
 		user_id := user.ID.Hex()
-		user.User_id = &user_id
+		user.UserId = &user_id
 
-		fmt.Printf("Email: %s, FirstName: %s, LastName: %s, UserType: %s, UserID: %s\n", *user.Email, *user.First_name, *user.Last_name, *user.User_type, *user.User_id)
+		fmt.Printf("Email: %s, FirstName: %s, LastName: %s, UserType: %s, UserID: %s\n", *user.Email, *user.FirstName, *user.LastName, *user.UserType, *user.UserId)
 
-		token, refreshToken, err := helper.GenerateAllTokens(*user.Email, *user.First_name, *user.Last_name, *user.User_type, *user.User_id)
+		token, refreshToken, err := helper.GenerateAllTokens(*user.Email, *user.FirstName, *user.LastName, *user.UserType, *user.UserId)
 		if err != nil {
 			log.Printf("Error generating JWT: %v", err)
 			msg := fmt.Sprint("couldn't generate jwt")
@@ -113,7 +113,7 @@ func Signup() gin.HandlerFunc {
 			return
 		}
 		user.Token = &token
-		user.Refresh_token = &refreshToken
+		user.RefreshToken = &refreshToken
 
 		resultInsertionNumber, insertErr := userCollection.InsertOne(ctx, user)
 		if insertErr != nil {
@@ -154,9 +154,9 @@ func Login() gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		}
 
-		token, refreshToken, _ := helper.GenerateAllTokens(*foundUser.Email, *foundUser.First_name, *foundUser.Last_name, *foundUser.User_type, *foundUser.User_id)
-		helper.UpdateAllTokens(token, refreshToken, *foundUser.User_id)
-		err = userCollection.FindOne(ctx, bson.M{"user_id": foundUser.User_id}).Decode(&foundUser)
+		token, refreshToken, _ := helper.GenerateAllTokens(*foundUser.Email, *foundUser.FirstName, *foundUser.LastName, *foundUser.UserType, *foundUser.UserId)
+		helper.UpdateAllTokens(token, refreshToken, *foundUser.UserId)
+		err = userCollection.FindOne(ctx, bson.M{"user_id": foundUser.UserId}).Decode(&foundUser)
 
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})

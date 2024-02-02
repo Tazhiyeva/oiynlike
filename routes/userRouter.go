@@ -7,10 +7,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func UserRoutes(incomingRoutes *gin.Engine) {
-	userGroup := incomingRoutes.Group("/users")
+func AdminRoutes(incomingRoutes *gin.Engine) {
+	userGroup := incomingRoutes.Group("/admin")
 	userGroup.Use(middleware.Authenticate())
 
-	userGroup.GET("/", controller.GetUsers())
-	userGroup.GET("/:user_id", controller.GetUser())
+	//admin
+	userGroup.GET("api/admin/users", controller.GetUsers())
+	userGroup.GET("api/admin/users/:user_id", controller.GetUser())
+
 }
