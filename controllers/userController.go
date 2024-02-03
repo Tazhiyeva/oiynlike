@@ -20,7 +20,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var userCollection *mongo.Collection = database.OpenCollection(database.ConnectToMongoDB(), "users")
+var userCollection *mongo.Collection = database.OpenCollection("users")
 var validate = validator.New()
 
 func HashPassword(providedPassword string) string {
@@ -63,6 +63,11 @@ func Signup() gin.HandlerFunc {
 			return
 		}
 
+		if userCollection == nil || ctx == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database connection error"})
+			return
+		}
+
 		// Проверка почты
 		emailCount, err := userCollection.CountDocuments(ctx, bson.M{"email": user.Email})
 		if err != nil {
@@ -75,14 +80,15 @@ func Signup() gin.HandlerFunc {
 		user.Password = &password
 
 		// Проверка номера телефона
-		phoneCount, err := userCollection.CountDocuments(ctx, bson.M{"phone": user.Phone})
-		if err != nil {
-			log.Panic(err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while checking for the phone number"})
-			return
-		}
+		// phoneCount, err := userCollection.CountDocuments(ctx, bson.M{"phone": user.Phone})
+		// if err != nil {
+		// 	log.Panic(err)
+		// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while checking for the phone number"})
+		// 	return
+		// }
 
-		if emailCount > 0 || phoneCount > 0 {
+		// if emailCount > 0 || phoneCount > 0 {
+		if emailCount > 0 {
 			c.JSON(http.StatusConflict, gin.H{"error": "User already exists"})
 			return
 		}

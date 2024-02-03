@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var gameCardCollection *mongo.Collection = database.OpenCollection(database.ConnectToMongoDB(), "gamecards")
+var gameCardCollection *mongo.Collection = database.OpenCollection("gamecards")
 
 func CreateGameCard() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -31,9 +32,9 @@ func CreateGameCard() gin.HandlerFunc {
 		firstName, _ := c.Get("firstName")
 		lastName, _ := c.Get("lastName")
 
-		hostUserID := userID.(string)
-		hostUserFirstName := firstName.(string)
-		hostUserLastName := lastName.(string)
+		hostUserID := fmt.Sprintf("%v", userID)
+		hostUserFirstName := fmt.Sprintf("%v", firstName)
+		hostUserLastName := fmt.Sprintf("%v", lastName)
 
 		gameCard.HostUser = models.User{
 			UserId:    &hostUserID,
@@ -45,7 +46,7 @@ func CreateGameCard() gin.HandlerFunc {
 		gameCard.UpdatedAt = time.Now()
 		gameCard.Status = "active"
 		gameCard.CurrentPlayers = 1
-		gameCard.MatchedPlayers = []models.User{} // Пустой массив для начала
+		gameCard.MatchedPlayers = []*models.User{} // Пустой массив для начала
 
 		// Вставляем созданную GameCard в базу данных
 		result, err := gameCardCollection.InsertOne(ctx, gameCard)
@@ -55,6 +56,6 @@ func CreateGameCard() gin.HandlerFunc {
 		}
 
 		// Отправляем успешный ответ с созданной GameCard
-		c.JSON(http.StatusCreated, gin.H{"message": "GameCard created successfully", "id": result.InsertedID})
+		c.JSON(http.StatusCreated, gin.H{"msg": "Game card successfully created.", "id": result.InsertedID})
 	}
 }

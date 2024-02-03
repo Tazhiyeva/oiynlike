@@ -16,7 +16,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var userCollection *mongo.Collection = database.OpenCollection(database.ConnectToMongoDB(), "users")
+var userCollection *mongo.Collection = database.OpenCollection("users")
 
 var SECRET_KEY []byte = []byte(os.Getenv("SECRET_KEY"))
 
@@ -29,7 +29,7 @@ func GenerateAllTokens(email, firstName, lastName, userType, uid string) (string
 		"lastName":  lastName,
 		"userType":  userType,
 		"uid":       uid,
-		"exp":       time.Now().Add(time.Hour * 1).Unix(), // Токен действителен в течение 1 часа
+		"exp":       time.Now().Add(time.Hour * 24 * 30).Unix(), // Токен действителен в течение 1 часа
 	})
 
 	// Подпись токена
@@ -60,10 +60,10 @@ func UpdateAllTokens(signedToken string, signedRefreshToken string, userId strin
 	var updateObj primitive.D
 
 	updateObj = append(updateObj, bson.E{Key: "token", Value: signedToken})
-	updateObj = append(updateObj, bson.E{Key: "refreshToken", Value: signedRefreshToken})
+	updateObj = append(updateObj, bson.E{Key: "refresh_token", Value: signedRefreshToken})
 
-	Updated_at, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-	updateObj = append(updateObj, bson.E{Key: "updated_at", Value: Updated_at})
+	UpdatedAt, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+	updateObj = append(updateObj, bson.E{Key: "updated_at", Value: UpdatedAt})
 
 	upsert := true
 	filter := bson.M{"user_id": userId}
@@ -86,7 +86,6 @@ func UpdateAllTokens(signedToken string, signedRefreshToken string, userId strin
 		return
 	}
 	return
-
 }
 
 func ValidateToken(tokenString string) (jwt.MapClaims, error) {
@@ -108,10 +107,10 @@ func ValidateToken(tokenString string) (jwt.MapClaims, error) {
 		return nil, fmt.Errorf("Failed to extract claims from token")
 	}
 
-	expirationTime := time.Unix(int64(claims["exp"].(float64)), 0)
-	if time.Now().After(expirationTime) {
-		return nil, fmt.Errorf("Token has expired")
-	}
+	// expirationTime := time.Unix(int64(claims["exp"].(float64)), 0)
+	// if time.Now().After(expirationTime) {
+	// 	return nil, fmt.Errorf("Token has expired")
+	// }
 
 	return claims, nil
 }

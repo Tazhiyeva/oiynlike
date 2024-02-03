@@ -8,10 +8,15 @@ import (
 )
 
 func GameCardRoutes(incomingRoutes *gin.Engine) {
-	userGroup := incomingRoutes.Group("/user")
-	userGroup.Use(middleware.Authenticate())
+	authMiddleware := middleware.Authenticate()
 
-	incomingRoutes.POST("api/user/gamecards", controller.CreateGameCard())
+	incomingRoutes.Use(authMiddleware)
+	{
+		// Все роуты, добавленные здесь, будут использовать authMiddleware
+		incomingRoutes.POST("api/gamecards", controller.CreateGameCard())
+
+	}
+
 	// incomingRoutes.PUT("api/user/gamecards/:id", controller.UpdateGameCard())
 
 	// incomingRoutes.GET("api/gamecards", controller.GetGameCards())

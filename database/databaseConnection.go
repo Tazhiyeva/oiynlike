@@ -17,39 +17,62 @@ var (
 	initErr     error // Variable to store the initialization error
 )
 
-func ConnectToMongoDB() *mongo.Client {
-	// Use sync.Once to ensure that the connection is established only once
+// InitializeMongoDB создает и возвращает новый клиент MongoDB
+func InitializeMongoDB() (*mongo.Client, error) {
+	err := godotenv.Load()
+	if err != nil {
+		return nil, fmt.Errorf("Error loading .env file: %v", err)
+	}
+
+	mongoURI := os.Getenv("MONGODB_URI")
+
+	clientOptions := options.Client().ApplyURI(mongoURI)
+
+	client, err := mongo.Connect(context.Background(), clientOptions)
+	if err != nil {
+		return nil, fmt.Errorf("Error connecting to MongoDB: %v", err)
+	}
+
+	err = client.Ping(context.Background(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("Error pinging MongoDB: %v", err)
+	}
+
+	fmt.Println("Connected to MongoDB successfully!")
+	return client, nil
+}
+
+// ConnectToMongoDB возвращает существующий клиент MongoDB, или создает новый при первом вызове
+func ConnectToMongoDB() (*mongo.Client, error) {
 	once.Do(func() {
-		err := godotenv.Load()
+		client, err := InitializeMongoDB()
 		if err != nil {
-			initErr = fmt.Errorf("Error loading .env file: %v", err)
+			initErr = err
 			return
 		}
 
-		mongoURI := os.Getenv("MONGODB_URI")
-
-		clientOptions := options.Client().ApplyURI(mongoURI)
-
-		client, err := mongo.Connect(context.Background(), clientOptions)
-		if err != nil {
-			initErr = fmt.Errorf("Error connecting to MongoDB: %v", err)
-			return
-		}
-
-		err = client.Ping(context.Background(), nil)
-		if err != nil {
-			initErr = fmt.Errorf("Error pinging MongoDB: %v", err)
-			return
-		}
-
-		fmt.Println("Connected to MongoDB successfully!")
 		mongoClient = client
 	})
 
-	return mongoClient
+	if initErr != nil {
+		return nil, initErr
+	}
+
+	if mongoClient == nil {
+		return nil, fmt.Errorf("MongoDB client is nil")
+	}
+
+	return mongoClient, nil
 }
 
-func OpenCollection(client *mongo.Client, collectionName string) *mongo.Collection {
+// OpenCollection открывает коллекцию MongoDB
+func OpenCollection(collectionName string) *mongo.Collection {
+	client, err := ConnectToMongoDB()
+	if err != nil {
+		fmt.Println("Error connecting to MongoDB:", err)
+		return nil
+	}
+
 	var collection *mongo.Collection = client.Database("oiynlike").Collection(collectionName)
 	return collection
 }
