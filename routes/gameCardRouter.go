@@ -14,6 +14,7 @@ func GameCardRoutes(incomingRoutes *gin.Engine) {
 	{
 		// Все роуты, добавленные здесь, будут использовать authMiddleware
 		incomingRoutes.POST("api/gamecards", controller.CreateGameCard())
+		incomingRoutes.GET("api/gamecards", controller.GetActiveGameCards())
 
 	}
 
