@@ -45,6 +45,18 @@ func VerifyPassword(userPassword string, providedPassword string) (bool, string)
 	return check, msg
 }
 
+// @Summary User signup
+// @Description Creates a new user account with the provided details and returns tokens and user information
+// @ID user-signup
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param user body models.User true "User details for signup"
+// @Success 200 {object} models.User "User created successfully"
+// @Failure 400 {object} ErrorResponse "Bad Request"
+// @Failure 409 {object} ErrorResponse "User already exists"
+// @Failure 500 {object} ErrorResponse "Internal Server Error"
+// @Router /users/signup [post]
 func Signup() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
@@ -132,6 +144,19 @@ func Signup() gin.HandlerFunc {
 	}
 }
 
+// @Summary User login
+// @Description Logs in a user with the provided email and password, returning the user details and tokens
+// @ID user-login
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param user body models.User true "User credentials for login"
+// @Success 200 {object} models.User "Successful login"
+// @Failure 400 {object} ErrorResponse "Bad Request"
+// @Failure 401 {object} ErrorResponse "Unauthorized"
+// @Failure 404 {object} ErrorResponse "User not found"
+// @Failure 500 {object} ErrorResponse "Internal Server Error"
+// @Router /users/login [post]
 func Login() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)

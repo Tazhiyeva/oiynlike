@@ -18,6 +18,19 @@ import (
 
 var gameCardCollection *mongo.Collection = database.OpenCollection("gamecards")
 
+// @Summary Create a new game card
+// @Description Creates a new game card with the provided details and associates it with the requesting user
+// @ID create-game-card
+// @Tags GameCards
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer {token}" default(api_key) "JWT token for user authentication"
+// @Param gameCard body models.GameCard true "GameCard object to be created"
+// @Success 201 {object} SuccessResponse "Created"
+// @Failure 400 {object} ErrorResponse "Bad Request"
+// @Failure 401 {object} ErrorResponse "Unauthorized"
+// @Failure 500 {object} ErrorResponse "Internal Server Error"
+// @Router /api/gamecards [post]
 func CreateGameCard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
@@ -39,10 +52,10 @@ func CreateGameCard() gin.HandlerFunc {
 		hostUserFirstName := fmt.Sprintf("%v", firstName)
 		hostUserLastName := fmt.Sprintf("%v", lastName)
 
-		gameCard.HostUser = models.User{
-			UserId:    &hostUserID,
-			FirstName: &hostUserFirstName,
-			LastName:  &hostUserLastName,
+		gameCard.HostUser = models.HostUser{
+			FirstName: hostUserFirstName,
+			LastName:  hostUserLastName,
+			UserID:    hostUserID,
 		}
 
 		gameCard.CreatedAt = time.Now()
@@ -63,7 +76,20 @@ func CreateGameCard() gin.HandlerFunc {
 	}
 }
 
-// Главная страница пользователя. Клиент запрашивает список карточек, и получает все активные кроме своих
+// @Summary Get active game cards excluding the ones of the requesting user
+// @Description Returns a list of active game cards, excluding the ones owned by the requesting user
+// @ID get-active-game-cards
+// @Tags GameCards
+// @Produce json
+// @Param page query int false "Page number for pagination (default is 1)"
+// @Param limit query int false "Number of items to return per page (default is 10, maximum is 100)"
+// @Security ApiKeyAuth
+// @Success 200 {array} models.GameCard "OK"
+// @Failure 400 {object} ErrorResponse "Bad Request"
+// @Failure 401 {object} ErrorResponse "Unauthorized"
+// @Failure 500 {object} ErrorResponse "Internal Server Error"
+// @Router /api/gamecards [get]
+
 func GetActiveGameCards() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
@@ -100,18 +126,26 @@ func GetActiveGameCards() gin.HandlerFunc {
 		}
 		defer cursor.Close(ctx)
 
-		// Проходим по результатам запроса и добавляем их в срез
+		// Проходим по результатам запроса и добавляем их в слайс
 		var gameCards []models.GameCard
 		if err := cursor.All(ctx, &gameCards); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		// Отправляем успешный ответ с активными игровыми картами
+		// Отправляем успешный ответ с активными gamecards
 		c.JSON(http.StatusOK, gameCards)
 	}
 }
 
+// @Summary Get user game cards
+// @Description Get a list of game cards for the current user
+// @Produce json
+// @Param status query string false "Filter by game card status"
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Items per page" default(10)
+// @Success 200 {object} []GameCard
+// @Router /gamecards [get]
 func GetUserGameCards() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
