@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -119,7 +120,7 @@ func GetActiveGameCards() gin.HandlerFunc {
 		}
 
 		// Запрашиваем активные игровые карты с учетом пагинации
-		cursor, err := gameCardCollection.Find(ctx, filter, options.Find().SetLimit(int64(limit)).SetSkip(int64(offset)))
+		cursor, err := gameCardCollection.Find(ctx, filter, options.Find().SetSort(bson.D{{Key: "created_at", Value: 1}}).SetLimit(int64(limit)).SetSkip(int64(offset)))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -148,6 +149,8 @@ func GetActiveGameCards() gin.HandlerFunc {
 // @Router /gamecards [get]
 func GetUserGameCards() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		log.Println("Handler reached!")
+
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
@@ -170,7 +173,7 @@ func GetUserGameCards() gin.HandlerFunc {
 		offset := (page - 1) * limit
 
 		// Формируем фильтр по UserID и статусу
-		filter := bson.M{"hostuser.userid": currentUserID}
+		filter := bson.M{"host_user.user_id": currentUserID}
 		if status != "" {
 			filter["status"] = status
 		}
@@ -178,6 +181,7 @@ func GetUserGameCards() gin.HandlerFunc {
 		// Запрашиваем игровые карты пользователя с учетом фильтрации и пагинации
 		cursor, err := gameCardCollection.Find(ctx, filter, options.Find().SetLimit(int64(limit)).SetSkip(int64(offset)))
 		if err != nil {
+			log.Println("Error querying database:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -186,11 +190,13 @@ func GetUserGameCards() gin.HandlerFunc {
 		// Проходим по результатам запроса и добавляем их в срез
 		var userGameCards []models.GameCard
 		if err := cursor.All(ctx, &userGameCards); err != nil {
+			log.Println("Error decoding results:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
 		// Отправляем успешный ответ с игровыми картами пользователя
 		c.JSON(http.StatusOK, userGameCards)
+		log.Println("Response sent:", userGameCards)
 	}
 }
