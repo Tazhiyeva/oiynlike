@@ -83,7 +83,7 @@ func CreateGameCard() gin.HandlerFunc {
 		gameCard.UpdatedAt = time.Now()
 		gameCard.Status = "active"
 		gameCard.CurrentPlayers = 1
-		gameCard.MatchedPlayers = []*models.User{} // Пустой массив для начала
+		gameCard.MatchedPlayers = []models.MatchedPlayer{} // Пустой массив для начала
 
 		// Вставляем созданную GameCard в базу данных
 		insertedID, err := insertGameCard(ctx, gameCard)

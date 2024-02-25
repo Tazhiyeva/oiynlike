@@ -88,8 +88,8 @@ func Signup() gin.HandlerFunc {
 			return
 		}
 
-		password := HashPassword(*user.Password)
-		user.Password = &password
+		password := HashPassword(user.Password)
+		user.Password = password
 
 		// Проверка номера телефона
 		// phoneCount, err := userCollection.CountDocuments(ctx, bson.M{"phone": user.Phone})
@@ -119,19 +119,19 @@ func Signup() gin.HandlerFunc {
 
 		user.ID = primitive.NewObjectID()
 		user_id := user.ID.Hex()
-		user.UserId = &user_id
+		user.UserId = user_id
 
-		fmt.Printf("Email: %s, FirstName: %s, LastName: %s, UserType: %s, UserID: %s\n", *user.Email, *user.FirstName, *user.LastName, *user.UserType, *user.UserId)
+		fmt.Printf("Email: %s, FirstName: %s, LastName: %s, UserType: %s, UserID: %s\n", user.Email, user.FirstName, user.LastName, user.UserType, user.UserId)
 
-		token, refreshToken, err := helper.GenerateAllTokens(*user.Email, *user.FirstName, *user.LastName, *user.UserType, *user.UserId)
+		token, refreshToken, err := helper.GenerateAllTokens(user.Email, user.FirstName, user.LastName, user.UserType, user.UserId)
 		if err != nil {
 			log.Printf("Error generating JWT: %v", err)
 			msg := fmt.Sprint("couldn't generate jwt")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
 			return
 		}
-		user.Token = &token
-		user.RefreshToken = &refreshToken
+		user.Token = token
+		user.RefreshToken = refreshToken
 
 		resultInsertionNumber, insertErr := userCollection.InsertOne(ctx, user)
 		if insertErr != nil {
@@ -174,19 +174,19 @@ func Login() gin.HandlerFunc {
 			return
 		}
 
-		passwordIsValid, msg := VerifyPassword(*user.Password, *foundUser.Password)
+		passwordIsValid, msg := VerifyPassword(user.Password, foundUser.Password)
 		defer cancel()
 		if passwordIsValid != true {
 			c.JSON(http.StatusBadRequest, gin.H{"error": msg})
 			return
 		}
 
-		if foundUser.Email == nil {
+		if foundUser.Email == "" {
 			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		}
 
-		token, refreshToken, _ := helper.GenerateAllTokens(*foundUser.Email, *foundUser.FirstName, *foundUser.LastName, *foundUser.UserType, *foundUser.UserId)
-		helper.UpdateAllTokens(token, refreshToken, *foundUser.UserId)
+		token, refreshToken, _ := helper.GenerateAllTokens(foundUser.Email, foundUser.FirstName, foundUser.LastName, foundUser.UserType, foundUser.UserId)
+		helper.UpdateAllTokens(token, refreshToken, foundUser.UserId)
 		err = userCollection.FindOne(ctx, bson.M{"user_id": foundUser.UserId}).Decode(&foundUser)
 
 		if err != nil {
@@ -289,5 +289,4 @@ func GetUser() gin.HandlerFunc {
 
 		c.JSON(http.StatusOK, user)
 	}
-
 }

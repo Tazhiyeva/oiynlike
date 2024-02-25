@@ -4,26 +4,14 @@ import (
 	"os"
 
 	"oiynlike/database"
-	"oiynlike/helpers"
 	routes "oiynlike/routes"
 
 	"github.com/gin-gonic/gin"
 )
 
-// @title Oiynlike
-// @version 1.0
-// @description Пока что пусто
-// @termsOfService Your Terms of Service
-// @contact.name Madina Tazhiyeva
-// @contact.email madinatazhiyeva@gmail.com
-// @host localhost:8000
-// @BasePath /api
-
 func main() {
 
 	database.ConnectToMongoDB()
-
-	helpers.InitScheduler()
 
 	port := os.Getenv("PORT")
 

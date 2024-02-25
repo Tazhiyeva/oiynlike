@@ -16,6 +16,7 @@ func GameCardRoutes(incomingRoutes *gin.Engine) {
 		incomingRoutes.POST("api/gamecards", controller.CreateGameCard())
 		incomingRoutes.GET("api/gamecards", controller.GetActiveGameCards())
 		incomingRoutes.GET("api/user/gamecards", controller.GetUserGameCards())
+		incomingRoutes.PUT("api/join", controller.JoinGameCard())
 
 	}
 
