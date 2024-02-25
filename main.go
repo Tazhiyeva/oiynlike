@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"oiynlike/database"
+	"oiynlike/helpers"
 	routes "oiynlike/routes"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,8 @@ import (
 func main() {
 
 	database.ConnectToMongoDB()
+
+	helpers.InitScheduler()
 
 	port := os.Getenv("PORT")
 

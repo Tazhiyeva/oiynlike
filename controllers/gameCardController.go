@@ -13,25 +13,50 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var gameCardCollection *mongo.Collection = database.OpenCollection("gamecards")
 
-// @Summary Create a new game card
-// @Description Creates a new game card with the provided details and associates it with the requesting user
-// @ID create-game-card
-// @Tags GameCards
-// @Accept json
-// @Produce json
-// @Param Authorization header string true "Bearer {token}" default(api_key) "JWT token for user authentication"
-// @Param gameCard body models.GameCard true "GameCard object to be created"
-// @Success 201 {object} SuccessResponse "Created"
-// @Failure 400 {object} ErrorResponse "Bad Request"
-// @Failure 401 {object} ErrorResponse "Unauthorized"
-// @Failure 500 {object} ErrorResponse "Internal Server Error"
-// @Router /api/gamecards [post]
+func validateGameCard(gameCard *models.GameCard) error {
+	if err := validate.Struct(gameCard); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createHostUserFromJWT(c *gin.Context) models.HostUser {
+	userID, _ := c.Get("uid")
+	firstName, _ := c.Get("first_name")
+	lastName, _ := c.Get("last_name")
+
+	hostUserID := fmt.Sprintf("%v", userID)
+	hostUserFirstName := fmt.Sprintf("%v", firstName)
+	hostUserLastName := fmt.Sprintf("%v", lastName)
+
+	return models.HostUser{
+		FirstName: hostUserFirstName,
+		LastName:  hostUserLastName,
+		UserID:    hostUserID,
+	}
+}
+
+func insertGameCard(ctx context.Context, gameCard models.GameCard) (primitive.ObjectID, error) {
+	result, err := gameCardCollection.InsertOne(ctx, gameCard)
+	if err != nil {
+		return primitive.NilObjectID, err
+	}
+	return result.InsertedID.(primitive.ObjectID), nil
+}
+
+func getGameCardByID(ctx context.Context, id primitive.ObjectID) (models.GameCard, error) {
+	gameCard := models.GameCard{}
+	err := gameCardCollection.FindOne(ctx, bson.M{"_id": id}).Decode(&gameCard)
+	return gameCard, err
+}
+
 func CreateGameCard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
@@ -44,21 +69,16 @@ func CreateGameCard() gin.HandlerFunc {
 			return
 		}
 
-		// Получаем данные пользователя из JWT токена
-		userID, _ := c.Get("uid")
-		firstName, _ := c.Get("first_name")
-		lastName, _ := c.Get("last_name")
-
-		hostUserID := fmt.Sprintf("%v", userID)
-		hostUserFirstName := fmt.Sprintf("%v", firstName)
-		hostUserLastName := fmt.Sprintf("%v", lastName)
-
-		gameCard.HostUser = models.HostUser{
-			FirstName: hostUserFirstName,
-			LastName:  hostUserLastName,
-			UserID:    hostUserID,
+		// Валидация данных
+		if err := validateGameCard(&gameCard); err != nil {
+			c.JSON(http.StatusBadRequest, err.Error())
+			return
 		}
 
+		// Получаем данные пользователя из JWT токена
+		gameCard.HostUser = createHostUserFromJWT(c)
+
+		// Устанавливаем временные метки и статус
 		gameCard.CreatedAt = time.Now()
 		gameCard.UpdatedAt = time.Now()
 		gameCard.Status = "active"
@@ -66,43 +86,44 @@ func CreateGameCard() gin.HandlerFunc {
 		gameCard.MatchedPlayers = []*models.User{} // Пустой массив для начала
 
 		// Вставляем созданную GameCard в базу данных
-		result, err := gameCardCollection.InsertOne(ctx, gameCard)
+		insertedID, err := insertGameCard(ctx, gameCard)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Получаем созданный объект из базы данных по его ID
+		createdGameCard, err := getGameCardByID(ctx, insertedID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
 		// Отправляем успешный ответ с созданной GameCard
-		c.JSON(http.StatusCreated, gin.H{"msg": "Game card successfully created.", "id": result.InsertedID})
+		c.JSON(http.StatusCreated, gin.H{"data": createdGameCard})
 	}
 }
 
-// @Summary Get active game cards excluding the ones of the requesting user
-// @Description Returns a list of active game cards, excluding the ones owned by the requesting user
-// @ID get-active-game-cards
-// @Tags GameCards
-// @Produce json
-// @Param page query int false "Page number for pagination (default is 1)"
-// @Param limit query int false "Number of items to return per page (default is 10, maximum is 100)"
-// @Security ApiKeyAuth
-// @Success 200 {array} models.GameCard "OK"
-// @Failure 400 {object} ErrorResponse "Bad Request"
-// @Failure 401 {object} ErrorResponse "Unauthorized"
-// @Failure 500 {object} ErrorResponse "Internal Server Error"
-// @Router /api/gamecards [get]
+func buildSortOption(sort, key string) bson.D {
+	switch sort {
+	case "desc":
+		return bson.D{{Key: key, Value: -1}}
+	case "asc":
+		return bson.D{{Key: key, Value: 1}}
+	default:
+		return bson.D{{Key: key, Value: 1}} // По умолчанию сортируем по возрастанию
+	}
+}
 
 func GetActiveGameCards() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
-		// Получаем UserID из JWT токена
-		userID, _ := c.Get("uid")
-		currentUserID := fmt.Sprintf("%v", userID)
-
 		// Извлекаем параметры пагинации
 		page, _ := strconv.Atoi(c.Query("page"))
 		limit, _ := strconv.Atoi(c.Query("limit"))
+		sort := c.Query("sort")
 		if page <= 0 {
 			page = 1
 		}
@@ -113,14 +134,19 @@ func GetActiveGameCards() gin.HandlerFunc {
 		// Рассчитываем смещение для запроса
 		offset := (page - 1) * limit
 
+		userID, _ := c.Get("uid")
+		currentUserID := fmt.Sprintf("%v", userID)
+
 		// Формируем фильтр для исключения карт текущего пользователя
 		filter := bson.M{
-			"status":          "active",
-			"hostuser.userid": bson.M{"$ne": currentUserID},
+			"status":            "active",
+			"host_user.user_id": bson.M{"$ne": currentUserID},
 		}
 
+		sortOption := buildSortOption(sort, "created_at")
+
 		// Запрашиваем активные игровые карты с учетом пагинации
-		cursor, err := gameCardCollection.Find(ctx, filter, options.Find().SetSort(bson.D{{Key: "created_at", Value: 1}}).SetLimit(int64(limit)).SetSkip(int64(offset)))
+		cursor, err := gameCardCollection.Find(ctx, filter, options.Find().SetSort(sortOption).SetLimit(int64(limit)).SetSkip(int64(offset)))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -136,17 +162,10 @@ func GetActiveGameCards() gin.HandlerFunc {
 
 		// Отправляем успешный ответ с активными gamecards
 		c.JSON(http.StatusOK, gameCards)
+
 	}
 }
 
-// @Summary Get user game cards
-// @Description Get a list of game cards for the current user
-// @Produce json
-// @Param status query string false "Filter by game card status"
-// @Param page query int false "Page number" default(1)
-// @Param limit query int false "Items per page" default(10)
-// @Success 200 {object} []GameCard
-// @Router /gamecards [get]
 func GetUserGameCards() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Println("Handler reached!")
