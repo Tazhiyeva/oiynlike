@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"oiynlike/database"
 	"oiynlike/models"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -21,12 +21,6 @@ type JoinRequest struct {
 func GetUserByID(ctx context.Context, userID string) (models.User, error) {
 	var user models.User
 
-	// Открываем коллекцию "users"
-	usersCollection := database.OpenCollection("users")
-	if usersCollection == nil {
-		return user, fmt.Errorf("Failed to open users collection")
-	}
-
 	// Преобразуем строку user_id в ObjectID
 	objectID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
@@ -37,7 +31,7 @@ func GetUserByID(ctx context.Context, userID string) (models.User, error) {
 	filter := bson.M{"_id": objectID}
 
 	// Ищем пользователя в коллекции
-	err = usersCollection.FindOne(ctx, filter).Decode(&user)
+	err = userCollection.FindOne(ctx, filter).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return user, fmt.Errorf("User not found")
@@ -122,14 +116,35 @@ func updateGameCard(ctx context.Context, gameCardID string, updatedGameCard mode
 	// Формируем фильтр по _id
 	filter := bson.M{"_id": objectID}
 
-	// Формируем обновленные данные
-	update := bson.D{{Key: "$set", Value: updatedGameCard}}
+	// Формируем динамический BSON-документ с учетом только указанных полей
+	updateFields := bson.D{
+		{Key: "$set", Value: bson.D{}},
+	}
+
+	if updatedGameCard.Title != "" {
+		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "title", Value: updatedGameCard.Title})
+	}
+	if updatedGameCard.Description != "" {
+		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "description", Value: updatedGameCard.Description})
+	}
+	if updatedGameCard.Status != "" {
+		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "status", Value: updatedGameCard.Status})
+	}
+	if updatedGameCard.MaxPlayers != 0 {
+		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "max_players", Value: updatedGameCard.MaxPlayers})
+	}
+	if !updatedGameCard.ScheduledTime.IsZero() {
+		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "scheduled_time", Value: updatedGameCard.ScheduledTime})
+	}
+
+	// Добавляем обновление поля "updated_at"
+	updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "updated_at", Value: time.Now()})
 
 	// Опции для FindOneAndUpdate
 	options := options.FindOneAndUpdate().SetReturnDocument(options.After)
 
 	// Выполняем обновление в базе данных
-	result := gameCardCollection.FindOneAndUpdate(ctx, filter, update, options)
+	result := gameCardCollection.FindOneAndUpdate(ctx, filter, updateFields, options)
 	if result.Err() != nil {
 		if result.Err() == mongo.ErrNoDocuments {
 			return fmt.Errorf("GameCard not found")

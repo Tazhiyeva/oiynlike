@@ -219,3 +219,56 @@ func GetUserGameCards() gin.HandlerFunc {
 		log.Println("Response sent:", userGameCards)
 	}
 }
+
+func UpdateGameCard() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		gameCardID := c.Param("gameCardID")
+
+		// Получаем UserID из JWT токена
+		userID, _ := c.Get("uid")
+		currentUserID := fmt.Sprintf("%v", userID)
+
+		isHost, err := isUserHostOfGameCard(context.Background(), currentUserID, gameCardID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking host status"})
+			return
+		}
+
+		if !isHost {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Only the host can update the gameCard"})
+			return
+		}
+
+		var updateData models.GameCard
+		if err := c.ShouldBindJSON(&updateData); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+
+		// Вызовите функцию обновления gameCard
+		err = updateGameCard(context.Background(), gameCardID, updateData)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating gameCard"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"msg": "GameCard updated successfully"})
+	}
+}
+
+func isUserHostOfGameCard(ctx context.Context, userID interface{}, gameCardID string) (bool, error) {
+	// Преобразуем gameCardID в ObjectID
+	objectID, err := primitive.ObjectIDFromHex(gameCardID)
+	if err != nil {
+		return false, fmt.Errorf("Invalid gameCardID format")
+	}
+
+	// Найдем gameCard в базе данных по ID и проверим, является ли пользователь хостом
+	filter := bson.M{"_id": objectID, "host_user.user_id": userID}
+	count, err := gameCardCollection.CountDocuments(ctx, filter)
+	if err != nil {
+		return false, fmt.Errorf("Error checking host status: %v", err)
+	}
+
+	return count > 0, nil
+}
