@@ -36,7 +36,7 @@ func main() {
 
 	// Подключение маршрутов
 	routes.AuthRoutes(router)
-	routes.AdminRoutes(router)
+	routes.UserRoutes(router)
 	routes.GameCardRoutes(router)
 
 	// Дополнительные маршруты для тестирования CORS

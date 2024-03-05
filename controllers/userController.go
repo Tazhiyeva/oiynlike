@@ -17,6 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -200,6 +201,62 @@ func Login() gin.HandlerFunc {
 
 }
 
+func UpdateUser() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Получаем ID пользователя из JWT
+		userID, _ := c.Get("uid")
+
+		// Извлекаем данные для обновления из тела запроса
+		var updateData models.User
+		if err := c.ShouldBindJSON(&updateData); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+
+		// Преобразуем userID в строку
+		userIDString := fmt.Sprintf("%v", userID)
+
+		// Формируем фильтр для поиска пользователя по ID
+		filter := bson.M{"user_id": userIDString}
+
+		// Формируем обновленные данные
+		updateFields := bson.D{
+			{Key: "$set", Value: bson.D{
+				{Key: "first_name", Value: updateData.FirstName},
+				{Key: "last_name", Value: updateData.LastName},
+				{Key: "email", Value: updateData.Email},
+				{Key: "about_user", Value: updateData.AboutUser},
+				{Key: "photo_url", Value: updateData.PhotoURL},
+				{Key: "city", Value: updateData.City},
+				{Key: "updated_at", Value: time.Now()},
+			}},
+		}
+
+		// Опции для FindOneAndUpdate
+		options := options.FindOneAndUpdate().SetReturnDocument(options.After)
+
+		// Выполняем обновление в базе данных
+		result := userCollection.FindOneAndUpdate(context.Background(), filter, updateFields, options)
+		if result.Err() != nil {
+			if result.Err() == mongo.ErrNoDocuments {
+				c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating user"})
+			return
+		}
+
+		// Декодируем обновленные данные
+		var updatedUser models.User
+		if err := result.Decode(&updatedUser); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding updated user"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"msg": "User updated successfully", "user": updatedUser})
+	}
+}
+
 // Admin data
 func GetUsers() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -288,5 +345,34 @@ func GetUser() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, user)
+	}
+}
+
+func GetProfile() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Получаем ID пользователя из JWT
+		userID, _ := c.Get("uid")
+
+		// Преобразуем userID в строку
+		userIDString := fmt.Sprintf("%v", userID)
+
+		fmt.Print("hello")
+
+		// Формируем фильтр для поиска пользователя по ID
+		filter := bson.M{"user_id": userIDString}
+
+		// Выполняем запрос к базе данных
+		var user models.User
+		err := userCollection.FindOne(context.Background(), filter).Decode(&user)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving user data"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"user": user})
 	}
 }

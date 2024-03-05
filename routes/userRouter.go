@@ -8,11 +8,19 @@ import (
 )
 
 func AdminRoutes(incomingRoutes *gin.Engine) {
-	userGroup := incomingRoutes.Group("/admin")
-	userGroup.Use(middleware.Authenticate())
+	adminGroup := incomingRoutes.Group("/admin")
+	adminGroup.Use(middleware.Authenticate())
 
 	//admin
-	userGroup.GET("api/admin/users", controller.GetUsers())
-	userGroup.GET("api/admin/users/:user_id", controller.GetUser())
+	adminGroup.GET("api/admin/users", controller.GetUsers())
+	adminGroup.GET("api/admin/users/:user_id", controller.GetUser())
 
+}
+
+func UserRoutes(incomingRoutes *gin.Engine) {
+	authMiddleware := middleware.Authenticate()
+	incomingRoutes.Use(authMiddleware)
+
+	incomingRoutes.PATCH("api/profile", controller.UpdateUser())
+	incomingRoutes.GET("api/profile", controller.GetProfile())
 }
