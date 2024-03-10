@@ -9,7 +9,6 @@ import (
 	helper "oiynlike/helpers"
 
 	"oiynlike/models"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -201,10 +200,49 @@ func Login() gin.HandlerFunc {
 
 }
 
-func UpdateUser() gin.HandlerFunc {
+func updateProfile(ctx context.Context, userID string, updatedUser models.User) error {
+	objectID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return fmt.Errorf("Invalid UserID format")
+	}
+
+	// Формируем фильтр по _id
+	filter := bson.M{"_id": objectID}
+
+	updateFields := bson.D{
+		{Key: "$set", Value: bson.D{}},
+	}
+
+	updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "first_name", Value: updatedUser.FirstName})
+	updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "last_name", Value: updatedUser.LastName})
+	updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "about_user", Value: updatedUser.AboutUser})
+	updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "city", Value: updatedUser.City})
+	updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "photo_url", Value: updatedUser.PhotoURL})
+	updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "updated_at", Value: time.Now()})
+
+	options := options.FindOneAndUpdate().SetReturnDocument(options.After)
+
+	result := userCollection.FindOneAndUpdate(ctx, filter, updateFields, options)
+	if result.Err() != nil {
+		if result.Err() == mongo.ErrNoDocuments {
+			return fmt.Errorf("User not found")
+		}
+		return fmt.Errorf("Error updating user: %v", result.Err())
+	}
+
+	var updated models.User
+	if err := result.Decode(&updated); err != nil {
+		return fmt.Errorf("Error decoding updated user: %v", err)
+	}
+
+	return nil
+}
+
+func UpdateProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Получаем ID пользователя из JWT
 		userID, _ := c.Get("uid")
+		userIDString := fmt.Sprintf("%v", userID)
 
 		// Извлекаем данные для обновления из тела запроса
 		var updateData models.User
@@ -213,138 +251,14 @@ func UpdateUser() gin.HandlerFunc {
 			return
 		}
 
-		// Преобразуем userID в строку
-		userIDString := fmt.Sprintf("%v", userID)
-
-		// Формируем фильтр для поиска пользователя по ID
-		filter := bson.M{"user_id": userIDString}
-
-		// Формируем обновленные данные
-		updateFields := bson.D{
-			{Key: "$set", Value: bson.D{
-				{Key: "first_name", Value: updateData.FirstName},
-				{Key: "last_name", Value: updateData.LastName},
-				{Key: "email", Value: updateData.Email},
-				{Key: "about_user", Value: updateData.AboutUser},
-				{Key: "photo_url", Value: updateData.PhotoURL},
-				{Key: "city", Value: updateData.City},
-				{Key: "updated_at", Value: time.Now()},
-			}},
-		}
-
-		// Опции для FindOneAndUpdate
-		options := options.FindOneAndUpdate().SetReturnDocument(options.After)
-
-		// Выполняем обновление в базе данных
-		result := userCollection.FindOneAndUpdate(context.Background(), filter, updateFields, options)
-		if result.Err() != nil {
-			if result.Err() == mongo.ErrNoDocuments {
-				c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-				return
-			}
+		// Вызовите функцию обновления gameCard
+		err := updateProfile(context.Background(), userIDString, updateData)
+		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating user"})
 			return
 		}
 
-		// Декодируем обновленные данные
-		var updatedUser models.User
-		if err := result.Decode(&updatedUser); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding updated user"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"msg": "User updated successfully", "user": updatedUser})
-	}
-}
-
-// Admin data
-func GetUsers() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if err := helper.CheckUserType(c, "ADMIN"); err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-			return
-		}
-
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-		defer cancel()
-
-		recordPerPage, err := strconv.Atoi(c.Query("recordPerPage"))
-		if err != nil || recordPerPage < 1 {
-			recordPerPage = 10
-		}
-
-		page, err := strconv.Atoi(c.Query("page"))
-		if err != nil || page < 1 {
-			page = 1
-		}
-
-		startIndex := (page - 1) * recordPerPage
-		startIndex, err = strconv.Atoi(c.Query("startIndex"))
-
-		matchStage := bson.D{{Key: "$match", Value: bson.D{{}}}}
-		groupStage := bson.D{
-			{Key: "$group", Value: bson.D{
-				{Key: "_id", Value: "null"},
-				{Key: "total_count", Value: bson.D{{Key: "$sum", Value: 1}}},
-				{Key: "data", Value: bson.D{
-					{Key: "$push", Value: "$$ROOT"},
-				}},
-			}},
-		}
-
-		projectStage := bson.D{
-			{Key: "$project", Value: bson.D{
-				{Key: "_id", Value: 0},
-				{Key: "total_count", Value: 1},
-				{Key: "user_items", Value: bson.D{
-					{Key: "$slice", Value: []interface{}{"$data", startIndex, recordPerPage}},
-				}},
-			}},
-		}
-
-		result, err := userCollection.Aggregate(ctx, mongo.Pipeline{
-			matchStage, groupStage, projectStage,
-		})
-
-		defer cancel()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occured while listing users"})
-			return
-		}
-
-		var allusers []bson.M
-
-		if err = result.All(ctx, &allusers); err != nil {
-			log.Fatal(err)
-		}
-
-		c.JSON(http.StatusOK, allusers)
-
-	}
-
-}
-
-func GetUser() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userId := c.Param("user_id")
-
-		if err := helper.MatchUserTypeToUid(c, userId); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error:": err.Error()})
-		}
-
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-
-		var user models.User
-
-		err := userCollection.FindOne(ctx, bson.M{"user_id": userId}).Decode(&user)
-		defer cancel()
-
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, user)
+		c.JSON(http.StatusOK, gin.H{"msg": "User updated successfully"})
 	}
 }
 

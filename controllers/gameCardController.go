@@ -27,22 +27,6 @@ func validateGameCard(gameCard *models.GameCard) error {
 	return nil
 }
 
-func createHostUserFromJWT(c *gin.Context) models.HostUser {
-	userID, _ := c.Get("uid")
-	firstName, _ := c.Get("first_name")
-	lastName, _ := c.Get("last_name")
-
-	hostUserID := fmt.Sprintf("%v", userID)
-	hostUserFirstName := fmt.Sprintf("%v", firstName)
-	hostUserLastName := fmt.Sprintf("%v", lastName)
-
-	return models.HostUser{
-		FirstName: hostUserFirstName,
-		LastName:  hostUserLastName,
-		UserID:    hostUserID,
-	}
-}
-
 func insertGameCard(ctx context.Context, gameCard models.GameCard) (primitive.ObjectID, error) {
 	result, err := gameCardCollection.InsertOne(ctx, gameCard)
 	if err != nil {
@@ -62,6 +46,9 @@ func CreateGameCard() gin.HandlerFunc {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
+		userID, _ := c.Get("uid")
+		userIDString := fmt.Sprintf("%v", userID)
+
 		// Получаем данные из запроса
 		var gameCard models.GameCard
 		if err := c.BindJSON(&gameCard); err != nil {
@@ -75,14 +62,31 @@ func CreateGameCard() gin.HandlerFunc {
 			return
 		}
 
-		// Получаем данные пользователя из JWT токена
-		gameCard.HostUser = createHostUserFromJWT(c)
+		user, err := GetUserByID(c, userIDString)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving user data"})
+			return
+		}
 
-		// Устанавливаем временные метки и статус
+		log.Print(user)
+
+		hostUser := models.HostUser{
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+			UserID:    userIDString,
+			PhotoURL:  user.PhotoURL,
+			City:      user.City,
+		}
+
+		gameCard.HostUser = hostUser
+
+		log.Printf("UserID: %s", userIDString)
+		log.Printf("User: %+v", user)
+		log.Printf("HostUser: %+v", hostUser)
+
 		gameCard.CreatedAt = time.Now()
 		gameCard.UpdatedAt = time.Now()
 		gameCard.Status = "active"
-		gameCard.CurrentPlayers = 1
 		gameCard.MatchedPlayers = []models.MatchedPlayer{} // Пустой массив для начала
 
 		// Вставляем созданную GameCard в базу данных
