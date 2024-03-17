@@ -23,4 +23,6 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 
 	incomingRoutes.PATCH("api/profile", controller.UpdateProfile())
 	incomingRoutes.GET("api/profile", controller.GetProfile())
+	incomingRoutes.POST("api/upload_photo", controller.UploadPhoto())
+
 }

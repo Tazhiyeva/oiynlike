@@ -11,11 +11,11 @@ import (
 func Authenticate() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		clientToken := c.Request.Header.Get("Authorization")
-		if clientToken == "" {
-			c.JSON(http.StatusForbidden, gin.H{"error": "No Authorization header provided"})
-			c.Abort()
-			return
-		}
+		// if clientToken == "" {
+		// 	c.JSON(http.StatusForbidden, gin.H{"error": "No Authorization header provided"})
+		// 	c.Abort()
+		// 	return
+		// }
 
 		if strings.HasPrefix(clientToken, "Bearer ") {
 			clientToken = strings.TrimPrefix(clientToken, "Bearer ")
