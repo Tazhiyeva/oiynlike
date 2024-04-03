@@ -61,6 +61,7 @@ func JoinGameCard() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving user data"})
 			return
 		}
+		fmt.Printf("User data: %+v\n", user)
 
 		// Преобразуем строку в ObjectID
 		gameCardID, err := primitive.ObjectIDFromHex(joinRequest.GameCardID)
@@ -96,12 +97,13 @@ func JoinGameCard() gin.HandlerFunc {
 		gameCard.MatchedPlayers = append(gameCard.MatchedPlayers, newMatchedPlayer)
 
 		// Обновляем gameCard в базе данных
-		err = updateGameCard(c, joinRequest.GameCardID, gameCard)
+		err = updateGameCard(c, joinRequest.GameCardID, gameCard) // Заменяем updatedGameCard на gameCard
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating gameCard"})
 			return
 		}
 
+		// Отправляем успешный ответ пользователю
 		c.JSON(http.StatusOK, gin.H{"msg": "User joined the gameCard successfully"})
 	}
 }
@@ -135,6 +137,21 @@ func updateGameCard(ctx context.Context, gameCardID string, updatedGameCard mode
 	}
 	if !updatedGameCard.ScheduledTime.IsZero() {
 		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "scheduled_time", Value: updatedGameCard.ScheduledTime})
+	}
+
+	// Обновляем matched_players
+	if len(updatedGameCard.MatchedPlayers) > 0 {
+		players := make([]interface{}, len(updatedGameCard.MatchedPlayers))
+		for i, player := range updatedGameCard.MatchedPlayers {
+			players[i] = bson.M{
+				"first_name": player.FirstName,
+				"last_name":  player.LastName,
+				"user_id":    player.UserID,
+				"photo_url":  player.PhotoURL,
+				"city":       player.City,
+			}
+		}
+		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "matched_players", Value: players})
 	}
 
 	// Добавляем обновление поля "updated_at"
