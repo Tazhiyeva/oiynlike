@@ -125,18 +125,13 @@ func GetActiveGameCards() gin.HandlerFunc {
 		defer cancel()
 
 		// Извлекаем параметры пагинации
-		page, _ := strconv.Atoi(c.Query("page"))
-		limit, _ := strconv.Atoi(c.Query("limit"))
+
 		sort := c.Query("sort")
-		if page <= 0 {
-			page = 1
-		}
-		if limit <= 0 || limit > 100 {
-			limit = 10
-		}
+		city := c.Query("city")
+		from := c.Query("from")
+		to := c.Query("to")
 
 		// Рассчитываем смещение для запроса
-		offset := (page - 1) * limit
 
 		userID, _ := c.Get("uid")
 		currentUserID := fmt.Sprintf("%v", userID)
@@ -147,10 +142,28 @@ func GetActiveGameCards() gin.HandlerFunc {
 			"host_user.user_id": bson.M{"$ne": currentUserID},
 		}
 
+		if city != "" {
+			filter["city"] = city
+		}
+
+		if from != "" && to != "" {
+			fromTime, err := time.Parse(time.RFC3339, from)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid from date format"})
+				return
+			}
+			toTime, err := time.Parse(time.RFC3339, to)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid to date format"})
+				return
+			}
+			filter["scheduled_time"] = bson.M{"$gte": fromTime, "$lte": toTime}
+		}
+
 		sortOption := buildSortOption(sort, "created_at")
 
 		// Запрашиваем активные игровые карты с учетом пагинации
-		cursor, err := gameCardCollection.Find(ctx, filter, options.Find().SetSort(sortOption).SetLimit(int64(limit)).SetSkip(int64(offset)))
+		cursor, err := gameCardCollection.Find(ctx, filter, options.Find().SetSort(sortOption))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

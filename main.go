@@ -38,6 +38,7 @@ func main() {
 	routes.AuthRoutes(router)
 	routes.UserRoutes(router)
 	routes.GameCardRoutes(router)
+	routes.PhotoUploadRoutes(router)
 
 	// Дополнительные маршруты для тестирования CORS
 	router.GET("api-1", func(c *gin.Context) {

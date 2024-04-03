@@ -132,6 +132,12 @@ func updateGameCard(ctx context.Context, gameCardID string, updatedGameCard mode
 	if updatedGameCard.Status != "" {
 		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "status", Value: updatedGameCard.Status})
 	}
+	if updatedGameCard.City != "" {
+		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "city", Value: updatedGameCard.City})
+	}
+	if updatedGameCard.CoverURL != "" {
+		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "cover_url", Value: updatedGameCard.CoverURL})
+	}
 	if updatedGameCard.MaxPlayers != 0 {
 		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "max_players", Value: updatedGameCard.MaxPlayers})
 	}
