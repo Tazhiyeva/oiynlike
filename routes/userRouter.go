@@ -23,5 +23,4 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 
 	incomingRoutes.PATCH("api/profile", controller.UpdateProfile())
 	incomingRoutes.GET("api/profile", controller.GetProfile())
-
 }
