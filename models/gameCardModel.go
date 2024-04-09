@@ -23,7 +23,7 @@ type MatchedPlayer struct {
 }
 
 type GameCard struct {
-	ID             primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	ID             primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	HostUser       HostUser           `json:"host_user" bson:"host_user"`
 	Title          string             `json:"title" bson:"title" validate:"required"`
 	Description    string             `json:"description" bson:"description" validate:"required"`

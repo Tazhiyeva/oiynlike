@@ -185,7 +185,6 @@ func GetActiveGameCards() gin.HandlerFunc {
 
 func GetUserGameCards() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log.Println("Handler reached!")
 
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
