@@ -39,6 +39,7 @@ func main() {
 	routes.UserRoutes(router)
 	routes.GameCardRoutes(router)
 	routes.AdminRoutes(router)
+	routes.AnticafeRoutes(router)
 
 	// Дополнительные маршруты для тестирования CORS
 	router.GET("api-1", func(c *gin.Context) {
