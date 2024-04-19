@@ -75,10 +75,10 @@ func UpdateAnticafe() gin.HandlerFunc {
 		if updatedAnticafe.Address != "" {
 			updateFields["address"] = updatedAnticafe.Address
 		}
-		if !updatedAnticafe.OpeningTime.IsZero() {
+		if updatedAnticafe.OpeningTime != "" {
 			updateFields["openingTime"] = updatedAnticafe.OpeningTime
 		}
-		if !updatedAnticafe.ClosingTime.IsZero() {
+		if updatedAnticafe.ClosingTime != "" {
 			updateFields["closingTime"] = updatedAnticafe.ClosingTime
 		}
 		if updatedAnticafe.PhoneNumber != "" {
@@ -126,7 +126,7 @@ func GetAllAnticafe() gin.HandlerFunc {
 		// Преобразование результатов запроса в массив антикафе
 		var anticafeList []models.AnticafeModel
 		if err := cursor.All(context.Background(), &anticafeList); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding anticafe list"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding anticafe list", "detail": err.Error()})
 			return
 		}
 

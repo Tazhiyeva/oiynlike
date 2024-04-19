@@ -11,8 +11,8 @@ type AnticafeModel struct {
 	Title       string             `json:"title" bson:"title" validate:"required"`
 	Rating      string             `json:"rating" bson:"rating"`
 	Address     string             `json:"address" bson:"address" validate:"required"`
-	OpeningTime time.Time          `json:"openingTime" bson:"openingTime" validate:"required"`
-	ClosingTime time.Time          `json:"closingTime" bson:"closingTime" validate:"required"`
+	OpeningTime string             `json:"openingTime" bson:"openingTime" validate:"required"`
+	ClosingTime string             `json:"closingTime" bson:"closingTime" validate:"required"`
 	PhoneNumber string             `json:"phoneNumber" bson:"phoneNumber" validate:"required"`
 	Description string             `json:"description" bson:"description"`
 	Photos      []string           `json:"photos" bson:"photos"`
