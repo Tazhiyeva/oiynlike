@@ -15,7 +15,7 @@ import (
 )
 
 type JoinRequest struct {
-	GameCardID string `json:"gameCardID" binding:"required"`
+	GameCardID primitive.ObjectID `json:"gameCardID" binding:"required"`
 }
 
 func GetUserByID(ctx context.Context, userID string) (models.User, error) {
@@ -42,6 +42,46 @@ func GetUserByID(ctx context.Context, userID string) (models.User, error) {
 	return user, nil
 }
 
+func AddPlayerToGameCard(c *gin.Context, userID string, gameCardID primitive.ObjectID) error {
+	// Получаем данные пользователя из коллекции users по user_id
+	user, err := GetUserByID(c, userID)
+	if err != nil {
+		return fmt.Errorf("Error retrieving user data: %v", err)
+	}
+
+	// Получаем gameCard по gameCardID
+	gameCard, err := getGameCardByID(c, gameCardID)
+	if err != nil {
+		return fmt.Errorf("Error retrieving gameCard data: %v", err)
+	}
+
+	// Проверяем, что пользователь еще не добавлен в matchedPlayers
+	for _, player := range gameCard.MatchedPlayers {
+		if player.UserID == userID {
+			return fmt.Errorf("User already joined the gameCard")
+		}
+	}
+
+	// Добавляем пользователя в matchedPlayers
+	newMatchedPlayer := models.MatchedPlayer{
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		UserID:    userID,
+		PhotoURL:  user.PhotoURL,
+		City:      user.City,
+	}
+
+	gameCard.MatchedPlayers = append(gameCard.MatchedPlayers, newMatchedPlayer)
+
+	// Обновляем gameCard в базе данных
+	err = updateGameCard(c, gameCardID, gameCard)
+	if err != nil {
+		return fmt.Errorf("Error updating gameCard: %v", err)
+	}
+
+	return nil
+}
+
 func JoinGameCard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Извлекаем user_id из JWT
@@ -55,51 +95,30 @@ func JoinGameCard() gin.HandlerFunc {
 			return
 		}
 
-		// Получаем данные пользователя из коллекции users по user_id
-		user, err := GetUserByID(c, userIDString)
+		// Добавляем пользователя к игровой карте
+		err := AddPlayerToGameCard(c, userIDString, joinRequest.GameCardID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving user data"})
-			return
-		}
-		fmt.Printf("User data: %+v\n", user)
-
-		// Преобразуем строку в ObjectID
-		gameCardID, err := primitive.ObjectIDFromHex(joinRequest.GameCardID)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid gameCardID"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		// Получаем gameCard по gameCardID
-		gameCard, err := getGameCardByID(c, gameCardID)
+		// Получаем данные игровой карты
+		gameCard, err := getGameCardByID(c, joinRequest.GameCardID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving gameCard data"})
 			return
 		}
 
-		// Проверяем, что пользователь еще не добавлен в matchedPlayers
-		for _, player := range gameCard.MatchedPlayers {
-			if player.UserID == userIDString {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "User already joined the gameCard"})
-				return
-			}
-		}
-
-		// Добавляем пользователя в matchedPlayers
-		newMatchedPlayer := models.MatchedPlayer{
-			FirstName: user.FirstName,
-			LastName:  user.LastName,
-			UserID:    userIDString,
-			PhotoURL:  user.PhotoURL,
-			City:      user.City,
-		}
-
-		gameCard.MatchedPlayers = append(gameCard.MatchedPlayers, newMatchedPlayer)
-
-		// Обновляем gameCard в базе данных
-		err = updateGameCard(c, joinRequest.GameCardID, gameCard) // Заменяем updatedGameCard на gameCard
+		// Создаем чат, если необходимо
+		err = CreateChatIfNeeded(c, &gameCard)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating gameCard"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		err = ChangeStatusIfNeeded(c, joinRequest.GameCardID, &gameCard)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -108,15 +127,26 @@ func JoinGameCard() gin.HandlerFunc {
 	}
 }
 
-// updateGameCard обновляет gameCard с заданным gameCardID
-func updateGameCard(ctx context.Context, gameCardID string, updatedGameCard models.GameCard) error {
-	objectID, err := primitive.ObjectIDFromHex(gameCardID)
-	if err != nil {
-		return fmt.Errorf("Invalid gameCardID format")
+func ChangeStatusIfNeeded(ctx context.Context, gameCardID primitive.ObjectID, gameCard *models.GameCard) error {
+	// Проверяем, равно ли количество присоединенных пользователей количеству нужных игроков
+	if len(gameCard.MatchedPlayers) == gameCard.MaxPlayers {
+		// Меняем статус карточки игры на "inactive"
+		gameCard.Status = "inactive"
+
+		// Обновляем карточку игры в базе данных
+		err := updateGameCard(ctx, gameCardID, *gameCard)
+		if err != nil {
+			return fmt.Errorf("Error updating gameCard status: %v", err)
+		}
 	}
+	return nil
+}
+
+// updateGameCard обновляет gameCard с заданным gameCardID
+func updateGameCard(ctx context.Context, gameCardID primitive.ObjectID, updatedGameCard models.GameCard) error {
 
 	// Формируем фильтр по _id
-	filter := bson.M{"_id": objectID}
+	filter := bson.M{"_id": gameCardID}
 
 	// Формируем динамический BSON-документ с учетом только указанных полей
 	updateFields := bson.D{

@@ -86,7 +86,7 @@ func CreateGameCard() gin.HandlerFunc {
 
 		gameCard.CreatedAt = time.Now()
 		gameCard.UpdatedAt = time.Now()
-		gameCard.Status = "active"
+		gameCard.Status = "moderation"
 		gameCard.MatchedPlayers = []models.MatchedPlayer{} // Пустой массив для начала
 
 		// Вставляем созданную GameCard в базу данных
@@ -240,6 +240,12 @@ func UpdateGameCard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		gameCardID := c.Param("gameCardID")
 
+		objectID, err := primitive.ObjectIDFromHex(gameCardID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Id is incorrect"})
+			return
+		}
+
 		// Получаем UserID из JWT токена
 		userID, _ := c.Get("uid")
 		currentUserID := fmt.Sprintf("%v", userID)
@@ -262,7 +268,7 @@ func UpdateGameCard() gin.HandlerFunc {
 		}
 
 		// Вызовите функцию обновления gameCard
-		err = updateGameCard(context.Background(), gameCardID, updateData)
+		err = updateGameCard(context.Background(), objectID, updateData)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating gameCard"})
 			return

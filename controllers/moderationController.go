@@ -94,6 +94,12 @@ func UpdateStatus() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		gameCardID := c.Param("gameCardID")
 
+		objectID, err := primitive.ObjectIDFromHex(gameCardID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "id is incorrect"})
+			return
+		}
+
 		// Извлечение значения параметра status из form-data
 		status := c.PostForm("status")
 
@@ -109,7 +115,7 @@ func UpdateStatus() gin.HandlerFunc {
 		}
 
 		// Вызовите функцию обновления gameCard
-		err := updateGameCard(context.Background(), gameCardID, updateData)
+		err = updateGameCard(context.Background(), objectID, updateData)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating gameCard"})
 			return
