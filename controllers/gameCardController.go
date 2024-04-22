@@ -282,14 +282,14 @@ func isUserHostOfGameCard(ctx context.Context, userID interface{}, gameCardID st
 	// Преобразуем gameCardID в ObjectID
 	objectID, err := primitive.ObjectIDFromHex(gameCardID)
 	if err != nil {
-		return false, fmt.Errorf("Invalid gameCardID format")
+		return false, fmt.Errorf("invalid gameCardID format")
 	}
 
 	// Найдем gameCard в базе данных по ID и проверим, является ли пользователь хостом
 	filter := bson.M{"_id": objectID, "host_user.user_id": userID}
 	count, err := gameCardCollection.CountDocuments(ctx, filter)
 	if err != nil {
-		return false, fmt.Errorf("Error checking host status: %v", err)
+		return false, fmt.Errorf("error checking host status: %v", err)
 	}
 
 	return count > 0, nil

@@ -135,7 +135,7 @@ func Signup() gin.HandlerFunc {
 
 		resultInsertionNumber, insertErr := userCollection.InsertOne(ctx, user)
 		if insertErr != nil {
-			msg := fmt.Sprint("User hasn't created ")
+			msg := fmt.Sprint("user hasn't created ")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
 			return
 		}
@@ -203,7 +203,7 @@ func Login() gin.HandlerFunc {
 func updateProfile(ctx context.Context, userID string, updatedUser models.User) error {
 	objectID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
-		return fmt.Errorf("Invalid UserID format")
+		return fmt.Errorf("invalid UserID format")
 	}
 
 	// Формируем фильтр по _id
@@ -225,14 +225,14 @@ func updateProfile(ctx context.Context, userID string, updatedUser models.User) 
 	result := userCollection.FindOneAndUpdate(ctx, filter, updateFields, options)
 	if result.Err() != nil {
 		if result.Err() == mongo.ErrNoDocuments {
-			return fmt.Errorf("User not found")
+			return fmt.Errorf("user not found")
 		}
-		return fmt.Errorf("Error updating user: %v", result.Err())
+		return fmt.Errorf("error updating user: %v", result.Err())
 	}
 
 	var updated models.User
 	if err := result.Decode(&updated); err != nil {
-		return fmt.Errorf("Error decoding updated user: %v", err)
+		return fmt.Errorf("error decoding updated user: %v", err)
 	}
 
 	return nil
@@ -247,18 +247,18 @@ func UpdateProfile() gin.HandlerFunc {
 		// Извлекаем данные для обновления из тела запроса
 		var updateData models.User
 		if err := c.ShouldBindJSON(&updateData); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 			return
 		}
 
 		// Вызовите функцию обновления gameCard
 		err := updateProfile(context.Background(), userIDString, updateData)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating user"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error updating user"})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"msg": "User updated successfully"})
+		c.JSON(http.StatusOK, gin.H{"msg": "user updated successfully"})
 	}
 }
 

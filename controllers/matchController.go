@@ -24,7 +24,7 @@ func GetUserByID(ctx context.Context, userID string) (models.User, error) {
 	// Преобразуем строку user_id в ObjectID
 	objectID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
-		return user, fmt.Errorf("Invalid user_id format")
+		return user, fmt.Errorf("invalid user_id format")
 	}
 
 	// Формируем фильтр по _id
@@ -34,9 +34,9 @@ func GetUserByID(ctx context.Context, userID string) (models.User, error) {
 	err = userCollection.FindOne(ctx, filter).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return user, fmt.Errorf("User not found")
+			return user, fmt.Errorf("user not found")
 		}
-		return user, fmt.Errorf("Error querying user: %v", err)
+		return user, fmt.Errorf("error querying user: %v", err)
 	}
 
 	return user, nil
@@ -46,19 +46,19 @@ func AddPlayerToGameCard(c *gin.Context, userID string, gameCardID primitive.Obj
 	// Получаем данные пользователя из коллекции users по user_id
 	user, err := GetUserByID(c, userID)
 	if err != nil {
-		return fmt.Errorf("Error retrieving user data: %v", err)
+		return fmt.Errorf("error retrieving user data: %v", err)
 	}
 
 	// Получаем gameCard по gameCardID
 	gameCard, err := getGameCardByID(c, gameCardID)
 	if err != nil {
-		return fmt.Errorf("Error retrieving gameCard data: %v", err)
+		return fmt.Errorf("error retrieving gameCard data: %v", err)
 	}
 
 	// Проверяем, что пользователь еще не добавлен в matchedPlayers
 	for _, player := range gameCard.MatchedPlayers {
 		if player.UserID == userID {
-			return fmt.Errorf("User already joined the gameCard")
+			return fmt.Errorf("user already joined the gameCard")
 		}
 	}
 
@@ -76,7 +76,7 @@ func AddPlayerToGameCard(c *gin.Context, userID string, gameCardID primitive.Obj
 	// Обновляем gameCard в базе данных
 	err = updateGameCard(c, gameCardID, gameCard)
 	if err != nil {
-		return fmt.Errorf("Error updating gameCard: %v", err)
+		return fmt.Errorf("error updating gameCard: %v", err)
 	}
 
 	return nil
@@ -136,7 +136,7 @@ func ChangeStatusIfNeeded(ctx context.Context, gameCardID primitive.ObjectID, ga
 		// Обновляем карточку игры в базе данных
 		err := updateGameCard(ctx, gameCardID, *gameCard)
 		if err != nil {
-			return fmt.Errorf("Error updating gameCard status: %v", err)
+			return fmt.Errorf("error updating gameCard status: %v", err)
 		}
 	}
 	return nil
@@ -202,13 +202,13 @@ func updateGameCard(ctx context.Context, gameCardID primitive.ObjectID, updatedG
 		if result.Err() == mongo.ErrNoDocuments {
 			return fmt.Errorf("GameCard not found")
 		}
-		return fmt.Errorf("Error updating gameCard: %v", result.Err())
+		return fmt.Errorf("error updating gameCard: %v", result.Err())
 	}
 
 	// Декодируем обновленные данные
 	var updatedCard models.GameCard
 	if err := result.Decode(&updatedCard); err != nil {
-		return fmt.Errorf("Error decoding updated gameCard: %v", err)
+		return fmt.Errorf("error decoding updated gameCard: %v", err)
 	}
 
 	return nil

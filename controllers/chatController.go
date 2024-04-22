@@ -6,6 +6,7 @@ import (
 	"net/http"
 	database "oiynlike/database"
 	"oiynlike/models"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -71,7 +72,7 @@ func CreateChatIfNeeded(c *gin.Context, gameCard *models.GameCard) error {
 		// Сохраняем чат в базе данных
 		err := createChat(c, &chat)
 		if err != nil {
-			return fmt.Errorf("Error creating chat: %v", err)
+			return fmt.Errorf("error creating chat: %v", err)
 		}
 	}
 	return nil
@@ -85,13 +86,13 @@ func createChat(c *gin.Context, chat *models.Chat) error {
 	// Вставляем чат в коллекцию
 	result, err := chatsCollection.InsertOne(ctx, chat)
 	if err != nil {
-		return fmt.Errorf("Error inserting chat into database: %v", err)
+		return fmt.Errorf("error inserting chat into database: %v", err)
 	}
 
 	// Получаем вставленный ID чата
 	insertedID, ok := result.InsertedID.(primitive.ObjectID)
 	if !ok {
-		return fmt.Errorf("Failed to get inserted chat ID")
+		return fmt.Errorf("failed to get inserted chat ID")
 	}
 
 	// Устанавливаем ID чата в структуре
@@ -129,7 +130,6 @@ func LeaveChatHandler() gin.HandlerFunc {
 		// Удаляем пользователя из списка участников чата
 		var updatedMembers []models.Sender
 		for _, member := range chat.Members {
-
 			if member.UserID != userIDString {
 				updatedMembers = append(updatedMembers, member)
 			}
@@ -144,5 +144,64 @@ func LeaveChatHandler() gin.HandlerFunc {
 
 		// Отправляем успешный ответ пользователю
 		c.JSON(http.StatusOK, gin.H{"msg": "User left the chat successfully"})
+	}
+}
+
+func SendMessageHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx := context.Background()
+
+		userID, _ := c.Get("uid")
+		userIDString := fmt.Sprintf("%v", userID)
+
+		chatID := c.Param("chat_id")
+		objectID, err := primitive.ObjectIDFromHex(chatID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error with chat_id"})
+			return
+		}
+
+		var message struct {
+			Text string `json:"text"`
+		}
+
+		if err := c.ShouldBindJSON(&message); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON request"})
+			return
+		}
+
+		user, err := GetUserByID(c, userIDString)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving user data"})
+			return
+		}
+
+		sender := models.Sender{
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+			UserID:    userIDString,
+			PhotoURL:  user.PhotoURL,
+		}
+
+		var chat models.Chat
+		err = chatsCollection.FindOne(ctx, bson.M{"_id": objectID, "members.user_id": userIDString}).Decode(&chat)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User is not a member of the chat"})
+			return
+		}
+
+		newMessage := models.Message{
+			Sender:    sender,
+			Content:   message.Text,
+			CreatedAt: time.Now(),
+		}
+
+		_, err = chatsCollection.UpdateOne(ctx, bson.M{"_id": objectID}, bson.M{"$push": bson.M{"messages": newMessage}})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error adding message to chat"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"msg": "Message sent successfully"})
 	}
 }
