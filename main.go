@@ -12,6 +12,7 @@ import (
 )
 
 func main() {
+
 	database.ConnectToMongoDB()
 
 	port := os.Getenv("PORT")

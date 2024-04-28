@@ -3,12 +3,14 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	database "oiynlike/database"
 	"oiynlike/models"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pusher/pusher-http-go/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -59,6 +61,7 @@ func CreateChatIfNeeded(c *gin.Context, gameCard *models.GameCard) error {
 			PhotoURL:  gameCard.HostUser.PhotoURL,
 		}
 		chat.Members = append(chat.Members, hostUser)
+		chat.Messages = []models.Message{}
 		// Добавляем присоединенных пользователей в список участников чата
 		for _, player := range gameCard.MatchedPlayers {
 			matchedUser := models.Sender{
@@ -69,6 +72,7 @@ func CreateChatIfNeeded(c *gin.Context, gameCard *models.GameCard) error {
 			}
 			chat.Members = append(chat.Members, matchedUser)
 		}
+
 		// Сохраняем чат в базе данных
 		err := createChat(c, &chat)
 		if err != nil {
@@ -153,6 +157,7 @@ func SendMessageHandler() gin.HandlerFunc {
 
 		userID, _ := c.Get("uid")
 		userIDString := fmt.Sprintf("%v", userID)
+		log.Printf("UserID: %s\n", userIDString)
 
 		chatID := c.Param("chat_id")
 		objectID, err := primitive.ObjectIDFromHex(chatID)
@@ -166,40 +171,66 @@ func SendMessageHandler() gin.HandlerFunc {
 		}
 
 		if err := c.ShouldBindJSON(&message); err != nil {
+			log.Printf("Error binding JSON: %v\n", err)
+
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON request"})
 			return
 		}
 
-		user, err := GetUserByID(c, userIDString)
+		user, err := GetUserByID(ctx, userIDString)
 		if err != nil {
+			log.Printf("Error retrieving user data: %v\n", err)
+
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving user data"})
 			return
 		}
 
-		sender := models.Sender{
-			FirstName: user.FirstName,
-			LastName:  user.LastName,
-			UserID:    userIDString,
-			PhotoURL:  user.PhotoURL,
-		}
+		log.Printf("Checking if user is a member of the chat...")
 
 		var chat models.Chat
 		err = chatsCollection.FindOne(ctx, bson.M{"_id": objectID, "members.user_id": userIDString}).Decode(&chat)
 		if err != nil {
+			log.Printf("Error finding chat or user  not a member: %v\n", err)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "User is not a member of the chat"})
 			return
 		}
 
 		newMessage := models.Message{
-			Sender:    sender,
+			Sender: models.Sender{
+				FirstName: user.FirstName,
+				LastName:  user.LastName,
+				UserID:    userIDString,
+				PhotoURL:  user.PhotoURL,
+			},
 			Content:   message.Text,
 			CreatedAt: time.Now(),
 		}
 
-		_, err = chatsCollection.UpdateOne(ctx, bson.M{"_id": objectID}, bson.M{"$push": bson.M{"messages": newMessage}})
+		update := bson.M{"$push": bson.M{"messages": newMessage}}
+
+		_, err = chatsCollection.UpdateOne(ctx, bson.M{"_id": objectID}, update)
+
 		if err != nil {
+			fmt.Println("Error updating chat with new message:", err)
+
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error adding message to chat"})
 			return
+		}
+
+		pusherClient := pusher.Client{
+			AppID:   "1793898",
+			Key:     "67245d0c826f3ab78967",
+			Secret:  "ebdef19d2aff6cb96034",
+			Cluster: "ap2",
+			Secure:  true,
+		}
+
+		channel := "game-chat-" + chatID
+		event := "new-message"
+
+		err = pusherClient.Trigger(channel, event, newMessage)
+		if err != nil {
+			fmt.Println("Error triggering pusher event:", err)
 		}
 
 		c.JSON(http.StatusOK, gin.H{"msg": "Message sent successfully"})

@@ -14,5 +14,6 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.PATCH("api/user/profile", controller.UpdateProfile())
 	incomingRoutes.GET("api/user/profile", controller.GetProfile())
 	incomingRoutes.GET("api/user/chats", controller.GetUserChatsHandler())
-	incomingRoutes.DELETE("api/user/leave_chat/:chat_id", controller.LeaveChatHandler())
+	incomingRoutes.DELETE("api/chat/:chat_id/leave_chat", controller.LeaveChatHandler())
+	incomingRoutes.POST("api/chat/:chat_id/message", controller.SendMessageHandler())
 }

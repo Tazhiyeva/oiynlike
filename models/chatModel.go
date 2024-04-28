@@ -16,7 +16,7 @@ type Chat struct {
 
 type Message struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Sender    Sender             `bson:"sender_id" json:"sender_id"`
+	Sender    Sender             `bson:"sender" json:"sender"`
 	Content   string             `bson:"content" json:"content"`
 	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
 }

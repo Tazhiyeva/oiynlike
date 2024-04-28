@@ -34,6 +34,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe // indirect
 	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
+	github.com/pusher/pusher-http-go/v5 v5.1.1 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
