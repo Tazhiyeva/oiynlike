@@ -161,6 +161,10 @@ func GetActiveGameCards() gin.HandlerFunc {
 			filter["scheduled_time"] = bson.M{"$gte": fromTime, "$lte": toTime}
 		}
 
+		if sort == "" {
+			sort = "desc"
+		}
+
 		sortOption := buildSortOption(sort, "created_at")
 
 		// Запрашиваем активные игровые карты с учетом пагинации
