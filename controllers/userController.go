@@ -290,3 +290,65 @@ func GetProfile() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"user": user})
 	}
 }
+
+func GetUserData() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+
+		// Получаем user_id из параметров запроса
+		userID := c.Param("user_id")
+
+		// Получаем информацию о пользователе из коллекции users
+		userFilter := bson.M{"user_id": userID}
+		var user models.User
+		err := userCollection.FindOne(ctx, userFilter).Decode(&user)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user data"})
+			return
+		}
+
+		// Получаем список игровых карт, где пользователь является хостом
+		hostFilter := bson.M{"host_user.user_id": userID}
+		hostCursor, err := gameCardCollection.Find(ctx, hostFilter)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch game cards"})
+			return
+		}
+		var hostGameCards []models.GameCard
+		err = hostCursor.All(ctx, &hostGameCards)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode game cards"})
+			return
+		}
+
+		// Получаем список игровых карт, где пользователь состоит в списке matched_players
+		matchFilter := bson.M{"matched_players": bson.M{"$elemMatch": bson.M{"user_id": userID}}}
+		matchCursor, err := gameCardCollection.Find(ctx, matchFilter)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch game cards"})
+			return
+		}
+		var matchGameCards []models.GameCard
+		err = matchCursor.All(ctx, &matchGameCards)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode game cards"})
+			return
+		}
+
+		// Собираем информацию о пользователе и его игровых картах в один ответ
+		userData := gin.H{
+			"user": gin.H{
+				"first_name": user.FirstName,
+				"last_name":  user.LastName,
+				"about_me":   user.AboutUser,
+				"photo_url":  user.PhotoURL,
+				"city":       user.City,
+			},
+			"games": append(hostGameCards, matchGameCards...),
+		}
+
+		// Возвращаем ответ
+		c.JSON(http.StatusOK, userData)
+	}
+}
