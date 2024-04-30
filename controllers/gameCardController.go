@@ -80,10 +80,6 @@ func CreateGameCard() gin.HandlerFunc {
 
 		gameCard.HostUser = hostUser
 
-		log.Printf("UserID: %s", userIDString)
-		log.Printf("User: %+v", user)
-		log.Printf("HostUser: %+v", hostUser)
-
 		gameCard.CreatedAt = time.Now()
 		gameCard.UpdatedAt = time.Now()
 		gameCard.Status = "moderation"
@@ -130,6 +126,7 @@ func GetActiveGameCards() gin.HandlerFunc {
 		city := c.Query("city")
 		from := c.Query("from")
 		to := c.Query("to")
+		category := c.Query("category")
 
 		// Рассчитываем смещение для запроса
 
@@ -144,6 +141,10 @@ func GetActiveGameCards() gin.HandlerFunc {
 
 		if city != "" {
 			filter["city"] = city
+		}
+
+		if category != "" {
+			filter["category"] = category
 		}
 
 		if from != "" && to != "" {

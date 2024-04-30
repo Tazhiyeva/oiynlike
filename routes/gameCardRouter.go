@@ -17,7 +17,8 @@ func GameCardRoutes(incomingRoutes *gin.Engine) {
 		incomingRoutes.GET("api/gamecards", controller.GetActiveGameCards())
 		incomingRoutes.GET("api/user/gamecards", controller.GetUserGameCards())
 		incomingRoutes.PUT("api/join", controller.JoinGameCard())
-		incomingRoutes.PATCH("api/gameCards/:gameCardID", controller.UpdateGameCard())
+		incomingRoutes.PATCH("api/gamecards/:gameCardID", controller.UpdateGameCard())
+		incomingRoutes.GET("api/gamecards/filters", controller.GetFilterValues())
 	}
 
 	// incomingRoutes.GET("api/gamecards/:id", controller.GetGameCard())

@@ -47,7 +47,7 @@ func GetUserChatsHandler() gin.HandlerFunc {
 
 func CreateChatIfNeeded(c *gin.Context, gameCard *models.GameCard) error {
 	// Создаем чат, если число присоединенных пользователей равно максимальному числу игроков
-	if len(gameCard.MatchedPlayers) == gameCard.MaxPlayers {
+	if len(gameCard.MatchedPlayers) == gameCard.MinPlayers {
 		chat := models.Chat{
 			Title:      gameCard.Title,
 			GameCardID: gameCard.ID,

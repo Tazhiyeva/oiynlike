@@ -55,6 +55,10 @@ func AddPlayerToGameCard(c *gin.Context, userID string, gameCardID primitive.Obj
 		return fmt.Errorf("error retrieving gameCard data: %v", err)
 	}
 
+	if userID == gameCard.HostUser.UserID {
+		return fmt.Errorf("host user is alredy joined by default")
+	}
+
 	// Проверяем, что пользователь еще не добавлен в matchedPlayers
 	for _, player := range gameCard.MatchedPlayers {
 		if player.UserID == userID {
@@ -156,6 +160,9 @@ func updateGameCard(ctx context.Context, gameCardID primitive.ObjectID, updatedG
 	if updatedGameCard.Title != "" {
 		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "title", Value: updatedGameCard.Title})
 	}
+	if updatedGameCard.Category != "" {
+		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "category", Value: updatedGameCard.Category})
+	}
 	if updatedGameCard.Description != "" {
 		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "description", Value: updatedGameCard.Description})
 	}
@@ -170,6 +177,9 @@ func updateGameCard(ctx context.Context, gameCardID primitive.ObjectID, updatedG
 	}
 	if updatedGameCard.MaxPlayers != 0 {
 		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "max_players", Value: updatedGameCard.MaxPlayers})
+	}
+	if updatedGameCard.MinPlayers != 0 {
+		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "min_players", Value: updatedGameCard.MinPlayers})
 	}
 	if !updatedGameCard.ScheduledTime.IsZero() {
 		updateFields[0].Value = append(updateFields[0].Value.(bson.D), bson.E{Key: "scheduled_time", Value: updatedGameCard.ScheduledTime})

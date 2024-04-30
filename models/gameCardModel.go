@@ -29,7 +29,9 @@ type GameCard struct {
 	Description    string             `json:"description" bson:"description" validate:"required"`
 	City           string             `json:"city" bson:"city" validate:"required"`
 	CoverURL       string             `json:"cover_url" bson:"cover_url"`
+	Category       string             `json:"category" bson:"category"`
 	MaxPlayers     int                `json:"max_players" bson:"max_players" validate:"gt=0"`
+	MinPlayers     int                `json:"min_players" bson:"min_players" validate:"gt=0"`
 	Status         string             `json:"status" bson:"status"`
 	MatchedPlayers []MatchedPlayer    `json:"matched_players" bson:"matched_players"`
 	CreatedAt      time.Time          `json:"created_at,omitempty" bson:"created_at,omitempty"`
