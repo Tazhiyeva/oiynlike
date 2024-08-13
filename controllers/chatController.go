@@ -218,11 +218,11 @@ func SendMessageHandler() gin.HandlerFunc {
 		}
 
 		pusherClient := pusher.Client{
-			AppID:   "1793898",
-			Key:     "67245d0c826f3ab78967",
-			Secret:  "ebdef19d2aff6cb96034",
-			Cluster: "ap2",
-			Secure:  true,
+			AppID:   "",
+			Key:     "",
+			Secret:  "",
+			Cluster: "",
+			Secure:  ,
 		}
 
 		channel := "game-chat-" + chatID
